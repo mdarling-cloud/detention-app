@@ -84,6 +84,9 @@
 
           <button class="primary" id="submitBtn">Submit</button>
           <div style="height:10px"></div>
+          <button class="secondary" id="textBtn" style="display:none">Text Home</button>
+
+          <div style="height:10px"></div>
           <button class="secondary" id="editBtn">Edit</button>
 
           <div id="resultMsg" style="margin-top:10px"></div>
@@ -117,6 +120,8 @@
   const reviewBtn = document.getElementById("reviewBtn");
   const reviewArea = document.getElementById("reviewArea");
   const submitBtn = document.getElementById("submitBtn");
+  const textBtn = document.getElementById("textBtn");
+
   const editBtn = document.getElementById("editBtn");
   const resultMsg = document.getElementById("resultMsg");
 
@@ -167,6 +172,10 @@
     formArea.style.display = "none";
     reviewArea.style.display = "none";
     resultMsg.innerHTML = "";
+    textBtn.style.display = "none";
+    window._smsPhone = "";
+    window._smsBody = "";
+
 
     try {
       const url = `${BACKEND}?action=options`;
@@ -279,8 +288,12 @@
   editBtn.addEventListener("click", () => {
     reviewArea.style.display = "none";
     resultMsg.innerHTML = "";
+    textBtn.style.display = "none";
+    window._smsPhone = "";
+    window._smsBody = "";
     unlockSubmitIfLocked_();
   });
+
 
   function getUsedDayKeysForSelectedStudent_() {
     if (!options) return [];
@@ -332,6 +345,19 @@
     unlockSubmitIfLocked_();
   });
 
+  textBtn.addEventListener("click", () => {
+    if (!window._smsPhone || !window._smsBody) return alert("No phone/text available yet.");
+
+    // Normalize phone for sms: (keep digits and +)
+    const phone = String(window._smsPhone).replace(/[^\d+]/g, "");
+    const body = encodeURIComponent(window._smsBody);
+
+    // iPhone Messages compose
+    if (!phone) return alert("No phone number found for this student.");
+    window.location.href = `sms:${phone}?body=${body}`;
+  });
+
+
 
 
   submitBtn.addEventListener("click", async () => {
@@ -371,7 +397,19 @@
       if (json.warning) msg += `<div class="muted">${json.warning}</div>`;
 
       resultMsg.innerHTML = msg;
+
+      // Save for Text Home button
+      window._smsPhone = json.phone || "";
+      window._smsBody = json.smsBody || "";
+
+      if (window._smsPhone && window._smsBody) {
+        textBtn.style.display = "block";
+      } else {
+        textBtn.style.display = "none";
+      }
+
       lockSubmitUntilEdit_();
+
     } catch (e) {
       resultMsg.innerHTML = `<div class="error">${e.message}</div>`;
     } finally {
