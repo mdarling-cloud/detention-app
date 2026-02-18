@@ -104,7 +104,27 @@
       </div>
     </div>
 
+    <!-- ATTENDANCE -->
+    <div id="attendanceView" class="card" style="display:none">
+      <div class="topbar">
+        <button class="linkbtn" id="backHome2">← Home</button>
+        <div style="flex:1"></div>
+      </div>
+
+      <h2 style="margin:0 0 10px">Detention Attendance</h2>
+      <div id="attLoadMsg" class="muted">Loading today’s list…</div>
+      <div id="attErrMsg" class="error" style="display:none"></div>
+
+      <div id="attList"></div>
+
+      <div style="height:14px"></div>
+      <button class="primary" id="attSubmitBtn" disabled>Submit Attendance</button>
+
+      <div id="attResultMsg" style="margin-top:10px"></div>
+    </div>
+
   </div>
+
 
 <script>
   // ✅ PASTE YOUR APPS SCRIPT /exec URL HERE
@@ -114,6 +134,21 @@
   const assignView = document.getElementById("assignView");
   const goAssign = document.getElementById("goAssign");
   const backHome = document.getElementById("backHome");
+  const goAttendance = document.getElementById("goAttendance");
+
+  // Attendance view elements
+  const attendanceView = document.getElementById("attendanceView");
+  const backHome2 = document.getElementById("backHome2");
+  const attLoadMsg = document.getElementById("attLoadMsg");
+  const attErrMsg = document.getElementById("attErrMsg");
+  const attList = document.getElementById("attList");
+  const attSubmitBtn = document.getElementById("attSubmitBtn");
+  const attResultMsg = document.getElementById("attResultMsg");
+
+  let attendanceRows = [];
+  let attendanceSms = {};
+  let attendanceSubmitted = false;
+
 
   const loadMsg = document.getElementById("loadMsg");
   const errMsg = document.getElementById("errMsg");
@@ -159,6 +194,7 @@
 
   function showHome() {
     assignView.style.display = "none";
+    attendanceView.style.display = "none";
     homeView.style.display = "block";
   }
 
@@ -364,7 +400,7 @@
 
     // iPhone Messages compose
     if (!phone) return alert("No phone number found for this student.");
-    window.location.href = `sms:${phone}?body=${body}`;
+    window.location.href = `sms:${phone}?&body=${body}`;
   });
 
   function showAttendance() {
@@ -453,7 +489,7 @@
         const body = encodeURIComponent(info.smsBody);
         if (!phone) return alert("No phone number found for this student.");
 
-        window.location.href = `sms:${phone}?body=${body}`;
+        window.location.href = `sms:${phone}?&body=${body}`;
       });
     });
   }
