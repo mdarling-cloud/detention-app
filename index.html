@@ -226,10 +226,26 @@
     try {
       const url = `${BACKEND}?action=options`;
       const res = await fetch(url);
-      const json = await res.json();
-      if (!json.ok) throw new Error(json.error || "Failed loading options");
 
+      // If Google returns an auth page or anything non-JSON, this will catch it
+      const contentType = res.headers.get("content-type") || "";
+      const text = await res.text();
+
+      let json;
+      if (contentType.includes("application/json")) {
+        json = JSON.parse(text);
+      } else {
+        // Usually means you got a login page / redirect HTML
+        throw new Error(
+          "Not signed in to Summit Google. Open the Apps Script /exec URL in a new tab, sign in with @summitps.org, then reload this page."
+        );
+      }
+
+      if (!json.ok) throw new Error(json.error || "Failed loading options");
       options = json;
+
+
+    
 
       // Populate selects
       populateSelect(studentSelect, options.students);
