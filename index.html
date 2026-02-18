@@ -181,14 +181,10 @@
       populateSelect(reasonSelect, options.reasons);
       populateSelect(assignerSelect, options.assigners);
 
-      // days are objects: {display,gVal,hVal}
-      daySelect.innerHTML = "";
-      options.days.forEach((d, idx) => {
-        const opt = document.createElement("option");
-        opt.value = String(idx);
-        opt.textContent = d.display;
-        daySelect.appendChild(opt);
-      });
+      // initialize filtered list and build day dropdown (supports filtering by week)
+      options._filteredDays = options.days;
+      refreshDayOptions_();
+
 
       // defaults
       toggleOtherReason();
@@ -206,11 +202,20 @@
     selectEl.innerHTML = "";
     (items || []).forEach(v => {
       const opt = document.createElement("option");
-      opt.value = v;
-      opt.textContent = v;
+
+      if (typeof v === "string") {
+        opt.value = v;
+        opt.textContent = v;
+      } else {
+        // expects {value,label}
+        opt.value = v.value;
+        opt.textContent = v.label;
+      }
+
       selectEl.appendChild(opt);
     });
   }
+
 
   function toggleOtherReason() {
     otherReasonWrap.style.display = (reasonSelect.value === "Other...") ? "block" : "none";
@@ -223,14 +228,17 @@
     if (!options) return;
     const q = studentSearch.value.trim().toLowerCase();
     const filtered = q
-      ? options.students.filter(s => s.toLowerCase().includes(q))
+      ? options.students.filter(s => (s.label || s.value || "").toLowerCase().includes(q))
       : options.students;
 
     const current = studentSelect.value;
     populateSelect(studentSelect, filtered);
 
     // try to keep current selection if still present
-    if (filtered.includes(current)) studentSelect.value = current;
+    if (filtered.some(s => (typeof s === "string" ? s : s.value) === current)) {
+      studentSelect.value = current;
+    }
+
   });
 
   reviewBtn.addEventListener("click", () => {
@@ -243,7 +251,7 @@
 
     if (!studentName) return alert("Choose a student.");
     if (!assigner) return alert("Choose who is assigning.");
-    if (!options || !options.days || !options.days[dayIdx]) return alert("Choose a day.");
+    if (!options || !options._filteredDays || !options._filteredDays[dayIdx]) return alert("Choose a day.");
     if (!reason) return alert("Choose a reason.");
     if (reason === "Other..." && !other) return alert("Type the other reason.");
 
@@ -251,11 +259,20 @@
 
     revStudent.textContent = studentName;
     revReason.textContent = finalReason;
-    revDay.textContent = options.days[dayIdx].display;
+    revDay.textContent = options._filteredDays[dayIdx].display;
     revAssigner.textContent = assigner;
 
+    const weekCount = getWeekCountForSelectedStudent_();
+    const duration = (weekCount >= 1) ? 40 : 20;
+
+    let reviewNote = `<div class="muted">Duration: <b>${duration} Minutes</b></div>`;
+    if (weekCount >= 1) {
+      reviewNote += `<div class="muted">Note: This student already has ${weekCount} detention(s) assigned this week.</div>`;
+    }
+
+    resultMsg.innerHTML = reviewNote;
     reviewArea.style.display = "block";
-    resultMsg.innerHTML = "";
+
     window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
   });
 
@@ -264,6 +281,58 @@
     resultMsg.innerHTML = "";
     unlockSubmitIfLocked_();
   });
+
+  function getUsedDayKeysForSelectedStudent_() {
+    if (!options) return [];
+    const name = studentSelect.value;
+    return (options.weekUsedDayKeys && options.weekUsedDayKeys[name]) ? options.weekUsedDayKeys[name] : [];
+  }
+
+  function getWeekCountForSelectedStudent_() {
+    if (!options) return 0;
+    const name = studentSelect.value;
+    return (options.weekCounts && options.weekCounts[name]) ? options.weekCounts[name] : 0;
+  }
+
+  function refreshDayOptions_() {
+    if (!options) return;
+
+    const usedKeys = getUsedDayKeysForSelectedStudent_();
+    const prevIdx = parseInt(daySelect.value, 10);
+
+    daySelect.innerHTML = "";
+
+    // Filter: if student already has >=1 this week, remove used days
+    const weekCount = getWeekCountForSelectedStudent_();
+    const filtered = (weekCount >= 1)
+      ? options.days.filter(d => !usedKeys.includes(`${d.gVal}||${d.hVal}`))
+      : options.days;
+
+    filtered.forEach((d, idx) => {
+      const opt = document.createElement("option");
+      // we store the index into "filtered" list; but we still need to access the object
+      opt.value = String(idx);
+      opt.textContent = d.display;
+      daySelect.appendChild(opt);
+    });
+
+    // store filtered list for submit/review
+    options._filteredDays = filtered;
+
+    // keep selection if possible
+    if (prevIdx >= 0 && prevIdx < filtered.length) {
+      daySelect.value = String(prevIdx);
+    } else {
+      daySelect.value = "0";
+    }
+  }
+
+  studentSelect.addEventListener("change", () => {
+    refreshDayOptions_();
+    unlockSubmitIfLocked_();
+  });
+
+
 
   submitBtn.addEventListener("click", async () => {
     submitBtn.disabled = true;
@@ -285,7 +354,7 @@
       params.append("otherReason", (reason === "Other...") ? other : "");
       params.append("assigner", assigner);
       // send day as JSON string
-      params.append("day", JSON.stringify(options.days[dayIdx]));
+      params.append("day", JSON.stringify(options._filteredDays[dayIdx]));
 
       const res = await fetch(BACKEND, {
         method: "POST",
