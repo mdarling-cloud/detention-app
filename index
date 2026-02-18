@@ -95,7 +95,7 @@
 
 <script>
   // ✅ PASTE YOUR APPS SCRIPT /exec URL HERE
-  const BACKEND = "PASTE_YOUR_EXEC_URL_HERE";
+  const BACKEND = "https://script.google.com/a/macros/summitps.org/s/AKfycbwLLJbkRrgeYwyyM8MQrosIv4VOele8Pw4FXJWBUKMjJDRGgSEgTZnQ3iLf-wXKKX4z/exec";
 
   const homeView = document.getElementById("homeView");
   const assignView = document.getElementById("assignView");
