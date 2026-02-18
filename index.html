@@ -95,7 +95,7 @@
 
 <script>
   // ✅ PASTE YOUR APPS SCRIPT /exec URL HERE
-  const BACKEND = "https://script.google.com/a/macros/summitps.org/s/AKfycbwUp-rOZuFsJRFg0hfiLMCLxDbKp0ZM0ccqqR704VIIZpGcGBRk5mj4iaOV9ozjH9YL/exec";
+  const BACKEND = "https://script.google.com/macros/s/AKfycbzwRZlwiEGNZC0PDqDvZjc45acKOBp379eMW0CMc7zBO8Q9dTGzOC8lxMUhdluYhosX/exec";
 
   const homeView = document.getElementById("homeView");
   const assignView = document.getElementById("assignView");
@@ -126,6 +126,21 @@
   const revAssigner = document.getElementById("revAssigner");
 
   let options = null; // {students,reasons,days,assigners}
+
+  let submitLockedUntilEdit = false;
+
+  function lockSubmitUntilEdit_() {
+    submitLockedUntilEdit = true;
+    submitBtn.disabled = true;
+  }
+
+  function unlockSubmitIfLocked_() {
+    if (submitLockedUntilEdit) {
+      submitLockedUntilEdit = false;
+      submitBtn.disabled = false;
+    }
+  }
+
 
   function showHome() {
     assignView.style.display = "none";
@@ -247,6 +262,7 @@
   editBtn.addEventListener("click", () => {
     reviewArea.style.display = "none";
     resultMsg.innerHTML = "";
+    unlockSubmitIfLocked_();
   });
 
   submitBtn.addEventListener("click", async () => {
@@ -260,14 +276,7 @@
       const dayIdx = parseInt(daySelect.value, 10);
       const assigner = assignerSelect.value;
 
-      const payload = {
-        action: "submit",
-        studentName,
-        reason,
-        otherReason: (reason === "Other...") ? other : null,
-        day: options.days[dayIdx],
-        assigner
-      };
+      
 
       const params = new URLSearchParams();
       params.append("action", "submit");
@@ -293,12 +302,22 @@
       if (json.warning) msg += `<div class="muted">${json.warning}</div>`;
 
       resultMsg.innerHTML = msg;
+      lockSubmitUntilEdit_();
     } catch (e) {
       resultMsg.innerHTML = `<div class="error">${e.message}</div>`;
     } finally {
-      submitBtn.disabled = false;
+      if (!submitLockedUntilEdit) submitBtn.disabled = false;
     }
   });
+
+  [studentSelect, reasonSelect, daySelect, assignerSelect].forEach(el => {
+    el.addEventListener("change", unlockSubmitIfLocked_);
+  });
+  otherReason.addEventListener("input", unlockSubmitIfLocked_);
+  studentSearch.addEventListener("input", unlockSubmitIfLocked_);
+
+  
+
 </script>
 </body>
 </html>
