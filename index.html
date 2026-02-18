@@ -305,7 +305,7 @@
     // Filter: if student already has >=1 this week, remove used days
     const weekCount = getWeekCountForSelectedStudent_();
     const filtered = (weekCount >= 1)
-      ? options.days.filter(d => !usedKeys.includes(`${d.gVal}||${d.hVal}`))
+      ? options.days.filter(d => !usedKeys.includes(d.key))
       : options.days;
 
     filtered.forEach((d, idx) => {
