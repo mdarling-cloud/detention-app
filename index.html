@@ -7,6 +7,13 @@
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#ffffff">
   <style>
+    .attRow { display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid #eee; }
+    .attInfo { flex: 1; }
+    .attName { font-weight:700; }
+    .attSmall { color:#666; font-size:14px; }
+    .attCheck { transform: scale(1.6); width: 26px; height: 26px; }
+    .attTextBtn { padding:10px; border-radius:10px; border:0; background:#e9e9ea; }
+
     body { font-family: -apple-system, system-ui, Arial; margin: 0; background:#f6f6f6; }
     .page { max-width: 520px; margin: 0 auto; padding: 18px; }
     h1 { margin: 10px 0 2px; font-size: 28px; }
@@ -39,6 +46,9 @@
       <button class="secondary" disabled>Look Up Student (Coming Soon)</button>
       <div style="height:10px"></div>
       <button class="primary" id="goAssign">Assign Detention</button>
+      <div style="height:10px"></div>
+      <button class="secondary" id="goAttendance">Detention Attendance</button>
+
     </div>
 
     <!-- ASSIGN -->
@@ -357,6 +367,134 @@
     window.location.href = `sms:${phone}?body=${body}`;
   });
 
+  function showAttendance() {
+    homeView.style.display = "none";
+    assignView.style.display = "none";
+    attendanceView.style.display = "block";
+  }
+
+  goAttendance.addEventListener("click", async () => {
+    showAttendance();
+    await loadAttendance();
+  });
+
+  backHome2.addEventListener("click", () => {
+    attendanceView.style.display = "none";
+    showHome();
+  });
+
+  async function loadAttendance() {
+    attLoadMsg.style.display = "block";
+    attErrMsg.style.display = "none";
+    attResultMsg.innerHTML = "";
+    attList.innerHTML = "";
+    attSubmitBtn.disabled = true;
+    attendanceSubmitted = false;
+    attendanceSms = {};
+
+    try {
+      const res = await fetch(`${BACKEND}?action=attendance_list`);
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error || "Failed to load attendance list");
+
+      attendanceRows = json.rows || [];
+      renderAttendanceList_();
+      attLoadMsg.style.display = "none";
+      attSubmitBtn.disabled = attendanceRows.length === 0;
+
+    } catch (e) {
+      attLoadMsg.style.display = "none";
+      attErrMsg.textContent = e.message;
+      attErrMsg.style.display = "block";
+    }
+  }
+
+  function renderAttendanceList_() {
+    attList.innerHTML = "";
+
+    if (!attendanceRows.length) {
+      attList.innerHTML = `<div class="muted">No students listed for today.</div>`;
+      return;
+    }
+
+    attendanceRows.forEach((r, i) => {
+      const row = document.createElement("div");
+      row.className = "attRow";
+
+      row.innerHTML = `
+        <input class="attCheck" type="checkbox" data-i="${i}" ${r.attended ? "checked" : ""} />
+        <div class="attInfo">
+          <div class="attName">${escapeHtmlClient_(r.studentName)}</div>
+          <div class="attSmall">${escapeHtmlClient_(r.dayDisplay)} • ${escapeHtmlClient_(r.reason)}</div>
+        </div>
+        <button class="attTextBtn" data-text="${i}" style="display:${attendanceSubmitted ? "block" : "none"}">Text</button>
+      `;
+
+      attList.appendChild(row);
+    });
+
+    // checkbox changes
+    attList.querySelectorAll('input[type="checkbox"][data-i]').forEach(cb => {
+      cb.addEventListener("change", (e) => {
+        const i = Number(e.target.getAttribute("data-i"));
+        attendanceRows[i].attended = e.target.checked;
+      });
+    });
+
+    // text buttons
+    attList.querySelectorAll('button[data-text]').forEach(btn => {
+      btn.addEventListener("click", () => {
+        const i = Number(btn.getAttribute("data-text"));
+        const name = attendanceRows[i].studentName;
+        const info = attendanceSms[name];
+        if (!info || !info.phone || !info.smsBody) return alert("No phone/text available.");
+
+        const phone = String(info.phone).replace(/[^\d+]/g, "");
+        const body = encodeURIComponent(info.smsBody);
+        if (!phone) return alert("No phone number found for this student.");
+
+        window.location.href = `sms:${phone}?body=${body}`;
+      });
+    });
+  }
+
+  attSubmitBtn.addEventListener("click", async () => {
+    attSubmitBtn.disabled = true;
+    attResultMsg.innerHTML = `<div class="muted">Submitting…</div>`;
+
+    try {
+      const payload = {
+        action: "attendance_submit",
+        items: attendanceRows.map(r => ({ idx: r.idx, attended: !!r.attended }))
+      };
+
+      const res = await fetch(BACKEND, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error || "Attendance submit failed");
+
+      attendanceSms = json.sms || {};
+      attendanceSubmitted = true;
+      renderAttendanceList_();
+
+      const r = json.result || {};
+      attResultMsg.innerHTML =
+        `<div class="success">Saved.</div>` +
+        `<div class="muted">Processed: ${r.processed || 0} (Attended: ${r.attended || 0}, Missed: ${r.missed || 0}, Skipped: ${r.skipped || 0})</div>`;
+
+    } catch (e) {
+      attResultMsg.innerHTML = `<div class="error">${e.message}</div>`;
+      attSubmitBtn.disabled = false;
+    }
+  });
+
+
+
+
 
 
 
@@ -422,6 +560,16 @@
   });
   otherReason.addEventListener("input", unlockSubmitIfLocked_);
   studentSearch.addEventListener("input", unlockSubmitIfLocked_);
+
+  function escapeHtmlClient_(s) {
+    return String(s || "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
 
   
 
