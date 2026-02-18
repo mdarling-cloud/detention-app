@@ -269,11 +269,20 @@
         assigner
       };
 
+      const params = new URLSearchParams();
+      params.append("action", "submit");
+      params.append("studentName", studentName);
+      params.append("reason", reason);
+      params.append("otherReason", (reason === "Other...") ? other : "");
+      params.append("assigner", assigner);
+      // send day as JSON string
+      params.append("day", JSON.stringify(options.days[dayIdx]));
+
       const res = await fetch(BACKEND, {
         method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify(payload)
+        body: params
       });
+
 
       const json = await res.json();
       if (!json.ok) throw new Error(json.error || "Submit failed");
