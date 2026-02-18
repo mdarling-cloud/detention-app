@@ -1,0 +1,9 @@
+{
+  "name": "Admin Tools",
+  "short_name": "Admin Tools",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "icons": []
+}
